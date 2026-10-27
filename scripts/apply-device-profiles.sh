@@ -5,7 +5,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-[ -d lorawan-devices ] || git clone --depth 1 https://github.com/chirpstack/chirpstack-device-profiles ./lorawan-devices
+if [ ! -d lorawan-devices/vendors ]; then
+  rm -rf lorawan-devices
+  git clone --depth 1 https://github.com/chirpstack/chirpstack-device-profiles ./lorawan-devices
+fi
 
 for vendor_dir in device-profiles/vendors/*/; do
   vendor=$(basename "$vendor_dir")
