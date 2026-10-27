@@ -1,0 +1,119 @@
+name: smartcrop-frost
+
+services:
+
+  # ---- LoRaWAN network server --------------------------------------------
+  chirpstack:
+    image: chirpstack/chirpstack:4
+    command: -c /etc/chirpstack
+    restart: unless-stopped
+    volumes:
+      - ./configuration/chirpstack:/etc/chirpstack
+      - ./lorawan-devices:/opt/lorawan-devices
+    depends_on:
+      - postgres
+      - mosquitto
+      - redis
+    environment:
+      - MQTT_BROKER_HOST=mosquitto
+      - REDIS_HOST=redis
+      - POSTGRESQL_HOST=postgres
+    ports:
+      - "127.0.0.1:8100:8080"   # ChirpStack UI + gRPC; nginx fronts it as frost.smartcrop.com
+
+  # ---- Gateway bridge: Semtech UDP packet forwarder (port 1700) ----------
+  chirpstack-gateway-bridge:
+    image: chirpstack/chirpstack-gateway-bridge:4
+    restart: unless-stopped
+    ports:
+      - "1700:1700/udp"          # Semtech UDP fallback; restrict at the firewall by source IP
+    volumes:
+      - ./configuration/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
+    environment:
+      - INTEGRATION__MQTT__EVENT_TOPIC_TEMPLATE=us915_1/gateway/{{ .GatewayID }}/event/{{ .EventType }}
+      - INTEGRATION__MQTT__STATE_TOPIC_TEMPLATE=us915_1/gateway/{{ .GatewayID }}/state/{{ .StateType }}
+      - INTEGRATION__MQTT__COMMAND_TOPIC_TEMPLATE=us915_1/gateway/{{ .GatewayID }}/command/#
+    depends_on:
+      - mosquitto
+
+  # ---- Gateway bridge: Basic Station (WebSocket, port 3001) --------------
+  chirpstack-gateway-bridge-basicstation:
+    image: chirpstack/chirpstack-gateway-bridge:4
+    restart: unless-stopped
+    command: -c /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge-basicstation.toml
+    ports:
+      - "127.0.0.1:8103:3001"   # Basic Station WS; nginx terminates TLS as lns.smartcrop.com
+    volumes:
+      - ./configuration/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
+    depends_on:
+      - mosquitto
+
+  # ---- Optional REST wrapper around the gRPC API --------------------------
+  chirpstack-rest-api:
+    image: chirpstack/chirpstack-rest-api:4
+    restart: unless-stopped
+    command: --server chirpstack:8080 --bind 0.0.0.0:8090 --insecure
+    ports:
+      - "127.0.0.1:8101:8090"   # REST API; nginx /api/ on frost.smartcrop.com
+    depends_on:
+      - chirpstack
+
+  # ---- Infrastructure -----------------------------------------------------
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    volumes:
+      - ./configuration/postgresql/initdb:/docker-entrypoint-initdb.d
+      - postgresqldata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=root
+    ports:
+      - "127.0.0.1:5433:5432"   # 5433: the VPS already has Postgres on 5432
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 300 1 --save 60 100 --appendonly no
+    volumes:
+      - redisdata:/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1883:1883"   # MQTT: localhost only
+    volumes:
+      - ./configuration/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  # ---- Our code: store readings, evaluate rules, send alerts --------------
+  ingest:
+    build: ./ingest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - PG_DSN=postgresql://frost:frost@postgres:5432/frost
+      - BRAND=SmartCrop Frost
+    depends_on:
+      - mosquitto
+      - postgres
+      - chirpstack
+
+  # ---- Dashboards (optional) ----------------------------------------------
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8102:3000"   # Grafana; nginx fronts it as grafana.frost.smartcrop.com (optional)
+    volumes:
+      - grafanadata:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=changeme
+    depends_on:
+      - postgres
+
+volumes:
+  postgresqldata:
+  redisdata:
+  grafanadata:

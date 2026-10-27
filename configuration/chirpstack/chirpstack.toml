@@ -1,0 +1,51 @@
+# ChirpStack v4 configuration for the frost-monitoring POC.
+# Region files in this directory are loaded automatically; only the regions
+# listed in network.enabled_regions are activated.
+
+[logging]
+  level = "info"
+
+[postgresql]
+  dsn = "postgres://chirpstack:chirpstack@$POSTGRESQL_HOST/chirpstack?sslmode=disable"
+  max_open_connections = 10
+  min_idle_connections = 0
+
+[redis]
+  servers = [
+    "redis://$REDIS_HOST/",
+  ]
+  cluster = false
+
+[network]
+  # Private network ID (000000 is reserved for experimental/private use).
+  net_id = "000000"
+
+  # US915 sub-band 2 = channels 8-15 (+ 500 kHz channel 65).
+  # This is the ChirpStack / TTN / Dragino default for the US.
+  enabled_regions = [
+    "us915_1",
+  ]
+
+[api]
+  bind = "0.0.0.0:8080"
+  # Change this to a long random string before exposing the UI anywhere.
+  secret = "change-me-to-a-long-random-string"
+
+[integration]
+  enabled = ["mqtt"]
+
+  [integration.mqtt]
+    server = "tcp://$MQTT_BROKER_HOST:1883/"
+    json = true
+    # Topic the ingest service subscribes to:
+    #   application/{application_id}/device/{dev_eui}/event/{event}
+    event_topic = "application/{{application_id}}/device/{{dev_eui}}/event/{{event}}"
+    command_topic = "application/{{application_id}}/device/{{dev_eui}}/command/{{command}}"
+
+[gateway]
+  # Gateways must be registered in the UI before ChirpStack accepts their frames.
+  allow_unknown_gateways = false
+
+[codec]
+  [codec.js]
+    max_execution_time = "100ms"

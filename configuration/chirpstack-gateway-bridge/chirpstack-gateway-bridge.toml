@@ -1,0 +1,35 @@
+# Gateway bridge: Semtech UDP packet forwarder -> MQTT.
+# The LPS8N talks to this on UDP port 1700.
+
+[general]
+  log_level = 4
+
+[backend]
+  type = "semtech_udp"
+
+  [backend.semtech_udp]
+    udp_bind = "0.0.0.0:1700"
+
+[integration]
+  marshaler = "protobuf"
+
+  [integration.mqtt]
+    # Topic templates are overridden by environment variables in docker-compose
+    # so the region prefix (us915_1) stays in one place.
+    event_topic_template = "us915_1/gateway/{{ .GatewayID }}/event/{{ .EventType }}"
+    state_topic_template = "us915_1/gateway/{{ .GatewayID }}/state/{{ .StateType }}"
+    command_topic_template = "us915_1/gateway/{{ .GatewayID }}/command/#"
+    state_retained = true
+    keep_alive = "30s"
+    max_reconnect_interval = "1m0s"
+
+    [integration.mqtt.auth]
+      type = "generic"
+
+      [integration.mqtt.auth.generic]
+        servers = ["tcp://mosquitto:1883"]
+        username = ""
+        password = ""
+        qos = 0
+        clean_session = true
+        client_id = ""
