@@ -6,7 +6,7 @@
 
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'smartcrop_app') then
-    create role smartcrop_app with login password 'CHANGE-ME';
+    create role smartcrop_app with login password '78T269ZqWInrpRWmyZUrU21ZHM0aRAna';
   end if;
 end $$;
 
