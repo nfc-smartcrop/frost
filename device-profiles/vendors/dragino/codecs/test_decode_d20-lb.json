@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Test decode Dragino D20-LB (22.8 C)",
+    "input": {
+      "fPort": 2,
+      "bytes": [
+        14,
+        36,
+        0,
+        228,
+        0,
+        0,
+        12,
+        127,
+        255,
+        127,
+        255
+      ]
+    },
+    "expected": {
+      "data": {
+        "Node_type": "D23-LB",
+        "BatV": 3.62,
+        "EXTI_Trigger": "FALSE",
+        "Door_status": "OPEN",
+        "TempC1": 22.8
+      }
+    }
+  },
+  {
+    "name": "Test decode Dragino D20-LB (-3.5 C)",
+    "input": {
+      "fPort": 2,
+      "bytes": [
+        14,
+        36,
+        255,
+        221,
+        0,
+        0,
+        12,
+        127,
+        255,
+        127,
+        255
+      ]
+    },
+    "expected": {
+      "data": {
+        "Node_type": "D23-LB",
+        "BatV": 3.62,
+        "EXTI_Trigger": "FALSE",
+        "Door_status": "OPEN",
+        "TempC1": -3.5
+      }
+    }
+  }
+]

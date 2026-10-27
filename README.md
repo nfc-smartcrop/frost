@@ -35,10 +35,18 @@ certbot --nginx -d frost.smartcrop.com -d lns.smartcrop.com
 ## ChirpStack setup (once per server)
 
 1. `https://frost.smartcrop.com` → `admin` / `admin` → change the password.
-2. **Network Server → Device Profiles → Add** — global profile, shared by all tenants:
-   Name `Dragino D20-LB US915`, Region `US915`, Region config `us915_1`,
-   MAC `1.0.3`, Rev `A`, expected uplink `300`.
-   Codec tab → *JavaScript functions* → paste `codecs/dragino-d2x-lb-chirpstack-v4.js`.
+2. **Global device profiles** come only from the import (there is no "add" form at
+   Network Server level in ChirpStack 4.16+). SmartCrop's supported sensors that
+   are missing upstream live in `device-profiles/` in repo format; apply them with:
+
+   ```bash
+   bash scripts/apply-device-profiles.sh
+   ```
+
+   This merges them into `lorawan-devices/` and re-runs the import. Afterwards
+   **Network Server → Device Profiles → Dragino** lists the D20-LB and it is
+   selectable by every tenant when adding a device. (Tenant → Device Profiles still
+   works for a one-off, tenant-scoped profile: paste `codecs/dragino-d2x-lb-chirpstack-v4.js`.)
 3. **Network Server → API Keys → Add** `smartcrop-backend` (admin). Store the token —
    SmartCrop's backend will use it to provision tenants/devices later.
 
